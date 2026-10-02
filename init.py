@@ -13,7 +13,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "shared"))
 
-from speech import MODELS_DIR, RELEASE_URL, VAD_MODEL, stt_model_directory  # noqa: E402
+from speech import (  # noqa: E402
+    MODELS_DIR,
+    STT_RELEASE_URL,
+    TTS_RELEASE_URL,
+    VAD_MODEL,
+    stt_model_directory,
+    tts_voice_directory,
+)
 
 
 def download_vad() -> None:
@@ -22,19 +29,19 @@ def download_vad() -> None:
     if destination.exists():
         return
     partial = destination.with_suffix(".partial")
-    urllib.request.urlretrieve(f"{RELEASE_URL}/{VAD_MODEL}", partial)
+    urllib.request.urlretrieve(f"{STT_RELEASE_URL}/{VAD_MODEL}", partial)
     partial.rename(destination)
     print(f"Downloaded {VAD_MODEL}.")
 
 
-def download_stt_model(destination: Path) -> None:
-    """Download and unpack a speech-to-text model if missing."""
+def download_model(release_url: str, destination: Path) -> None:
+    """Download and unpack a model archive if missing."""
     if destination.exists():
         return
     archive = MODELS_DIR / f"{destination.name}.tar.bz2"
     staging = MODELS_DIR / f"{destination.name}.partial"
     shutil.rmtree(staging, ignore_errors=True)
-    urllib.request.urlretrieve(f"{RELEASE_URL}/{destination.name}.tar.bz2", archive)
+    urllib.request.urlretrieve(f"{release_url}/{destination.name}.tar.bz2", archive)
     with tarfile.open(archive) as tar:
         tar.extractall(staging, filter="data")
     archive.unlink()
@@ -48,7 +55,8 @@ def main() -> None:
     """Download the models the plugin needs."""
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     download_vad()
-    download_stt_model(stt_model_directory())
+    download_model(STT_RELEASE_URL, stt_model_directory())
+    download_model(TTS_RELEASE_URL, tts_voice_directory())
     print("Speech models are ready.")
 
 

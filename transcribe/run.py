@@ -17,14 +17,12 @@ import soxr  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "shared"))
 
-from speech import MODELS_DIR, VAD_MODEL, stt_model_directory  # noqa: E402
+from speech import MODELS_DIR, NUM_THREADS, VAD_MODEL, stt_model_directory  # noqa: E402
 
 SAMPLE_RATE = 16000
 # The plugin runner kills tools after 30 seconds. Stop starting new segments after this
 # point so long recordings return a partial transcript instead of nothing.
 TIME_BUDGET_SECONDS = 20
-# More threads than this is slower on the low-power CPU this runs on.
-NUM_THREADS = 2
 
 
 def load_audio(path: str) -> np.ndarray:

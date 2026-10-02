@@ -1,12 +1,17 @@
 {
   "name": "speech",
-  "description": "Offline speech recognition. Whenever the user sends a voice note or audio file, run this plugin's transcribe tool on it first and treat the transcript as their message.",
-  "instructions": "Models download in the background after install (about a minute). Set stt_model to moonshine-tiny for faster but less accurate transcription, then update the plugin to download it.",
+  "description": "Offline speech recognition and voice replies. Whenever the user sends a voice note or audio file, run this plugin's transcribe tool on it first and treat the transcript as their message. If they sent a voice note or ask to hear the answer, reply with a voice note made by the speak tool; otherwise reply in text.",
+  "instructions": "Models download in the background after install or update (a minute or two). Set stt_model to moonshine-tiny for faster but less accurate transcription, or tts_voice to another Piper voice, then update the plugin to download it.",
   "config": {
     "stt_model": {
       "description": "Speech-to-text model: moonshine-base (default, more accurate) or moonshine-tiny (about twice as fast).",
       "required": false,
       "default": "moonshine-base"
+    },
+    "tts_voice": {
+      "description": "Piper voice for spoken replies, for example en_US-lessac-medium (default), en_US-amy-low or en_GB-alan-medium.",
+      "required": false,
+      "default": "en_US-lessac-medium"
     }
   },
   "init": {

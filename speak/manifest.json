@@ -1,0 +1,11 @@
+{
+  "name": "speak",
+  "description": "Turn text into a spoken voice note (OGG Opus), offline. Send the produced file with send_telegram_message's attachmentPath to reply by voice. Write the text as you would say it aloud: no markdown, lists, URLs or emoji. At most 1000 characters.",
+  "entrypoint": "run.py",
+  "parameters": {
+    "text": {
+      "type": "string",
+      "description": "What to say, at most 1000 characters."
+    }
+  }
+}
