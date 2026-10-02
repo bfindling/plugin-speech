@@ -1,0 +1,11 @@
+{
+  "name": "transcribe",
+  "description": "Transcribe a voice note or other audio file (OGG/Opus, WAV, FLAC, MP3) to English text, offline. Returns the text and the audio length. Recordings longer than about a minute may come back partial, with a note saying so.",
+  "entrypoint": "run.py",
+  "parameters": {
+    "audio": {
+      "type": "file",
+      "description": "Absolute path of the audio file to transcribe, as given in the received-file notification."
+    }
+  }
+}
