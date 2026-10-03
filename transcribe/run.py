@@ -89,7 +89,17 @@ def main() -> None:
         texts.append(stream.result.text.strip())
         transcribed_seconds += len(segment) / SAMPLE_RATE
 
-    result = {"text": " ".join(text for text in texts if text), "audio_seconds": round(audio_seconds, 1)}
+    result = {
+        "text": " ".join(text for text in texts if text),
+        "audio_seconds": round(audio_seconds, 1),
+        # The agent tends to forget the plugin description's instruction by the time it
+        # replies, so repeat it where it is read just before replying.
+        "reply_instructions": (
+            "If this was the user's voice note, reply by voice: call this plugin's speak tool with your "
+            "answer written as spoken sentences, then send the produced file with send_telegram_message's "
+            "attachmentPath."
+        ),
+    }
     if not segments:
         result["note"] = "No speech was detected."
     elif len(texts) < len(segments):

@@ -55,6 +55,12 @@ Setup:
 4. Run `uv run listen.py --say "Testing the speaker."` to check the speaker.
 5. Run `uv run listen.py`. The first start downloads about 350 MB of models.
 
+To keep it running, start it with `--supervise`, which restarts the listener 10 seconds
+after it exits for any reason. On Windows, a scheduled task that runs
+`uvw run -q listen.py --supervise` in the `listener` folder at sign-in keeps it running
+in the background with no window; Windows only gives audio devices to a signed-in user,
+so that user must stay signed in.
+
 The wake phrase can be any words: change `wake_phrase` and restart. Adjust
 `wake_sensitivity` if it misses you or wakes on its own. Activity is logged to
 `listener/listener.log`.

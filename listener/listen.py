@@ -20,6 +20,7 @@ import os
 import queue
 import re
 import shutil
+import subprocess
 import sys
 import tarfile
 import time
@@ -56,6 +57,7 @@ SPEECH_START_TIMEOUT_SECONDS = 5
 END_OF_SPEECH_SILENCE_SECONDS = 1.0
 MAX_REQUEST_SECONDS = 30
 CHAT_TIMEOUT_SECONDS = 300
+RESTART_DELAY_SECONDS = 10
 SPOKEN_PREFIX = (
     "(Said aloud to you in the kitchen; your reply will be read out by a speaker. "
     "Answer in a few short spoken sentences with no markdown, lists, links or emoji.)\n\n"
@@ -350,16 +352,33 @@ class Listener:
         sounddevice.wait()
 
 
+def supervise() -> None:
+    """Run the listener in a child process and restart it whenever it exits."""
+    # Windows Task Scheduler only restarts tasks that fail to start, not ones that exit
+    # with an error, so the auto-start task runs this loop instead.
+    while True:
+        exit_code = subprocess.call(
+            [sys.executable, str(Path(__file__).resolve())],
+            cwd=LISTENER_DIR,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        log.error("Listener exited with code %s; restarting in %d seconds.", exit_code, RESTART_DELAY_SECONDS)
+        time.sleep(RESTART_DELAY_SECONDS)
+
+
 def main() -> None:
-    """Run the listener, list audio devices with --list-devices, or test the speaker with --say TEXT."""
+    """Run the listener, or: --list-devices, --say TEXT to test the speaker, --supervise to keep it running."""
     if "--list-devices" in sys.argv:
         print(sounddevice.query_devices())
         return
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s",
-        handlers=[logging.StreamHandler(), logging.FileHandler(LISTENER_DIR / "listener.log", encoding="utf-8")],
-    )
+    handlers: list[logging.Handler] = [logging.FileHandler(LISTENER_DIR / "listener.log", encoding="utf-8")]
+    # Started without a console (uvw on Windows), there is no stderr to log to.
+    if sys.stderr is not None:
+        handlers.append(logging.StreamHandler())
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", handlers=handlers)
+    if "--supervise" in sys.argv:
+        supervise()
+        return
     listener = Listener(load_config())
     if "--say" in sys.argv:
         listener.play(WAKE_CHIME)
