@@ -323,12 +323,18 @@ class Listener:
         credentials = base64.b64encode(f":{self.config['password']}".encode()).decode()
         request = urllib.request.Request(
             self.config["stavrobot_url"].rstrip("/") + "/chat",
-            data=json.dumps({"message": SPOKEN_PREFIX + text, "source": "kitchen"}).encode(),
+            # Stavrobot drops messages from sources it does not know unless they name a
+            # sender; with one, they go to the main agent.
+            data=json.dumps({"message": SPOKEN_PREFIX + text, "source": "kitchen", "sender": "listener"}).encode(),
             headers={"Content-Type": "application/json", "Authorization": f"Basic {credentials}"},
             method="POST",
         )
         with urllib.request.urlopen(request, timeout=CHAT_TIMEOUT_SECONDS) as response:
-            return json.load(response)["response"]
+            reply = json.load(response)["response"]
+        if not reply:
+            log.warning("Stavrobot returned an empty reply; check its logs for a dropped message.")
+            return "Sorry, Stavrobot didn't answer."
+        return reply
 
     def speak(self, text: str) -> None:
         """Read text aloud, generating each sentence while the previous one plays."""
@@ -345,7 +351,7 @@ class Listener:
 
 
 def main() -> None:
-    """Run the listener, or list audio devices with --list-devices."""
+    """Run the listener, list audio devices with --list-devices, or test the speaker with --say TEXT."""
     if "--list-devices" in sys.argv:
         print(sounddevice.query_devices())
         return
@@ -354,7 +360,12 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(message)s",
         handlers=[logging.StreamHandler(), logging.FileHandler(LISTENER_DIR / "listener.log", encoding="utf-8")],
     )
-    Listener(load_config()).run()
+    listener = Listener(load_config())
+    if "--say" in sys.argv:
+        listener.play(WAKE_CHIME)
+        listener.speak(sys.argv[sys.argv.index("--say") + 1])
+        return
+    listener.run()
 
 
 main()
