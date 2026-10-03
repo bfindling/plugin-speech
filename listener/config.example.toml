@@ -1,0 +1,26 @@
+# Copy this file to config.toml in the same folder and fill it in. config.toml is
+# gitignored because it holds your Stavrobot password.
+
+# Stavrobot's address and the password from its config.toml.
+stavrobot_url = "https://your-stavrobot.example.ts.net"
+password = ""
+
+# Any phrase works; two or three distinct words wake most reliably. Restart the
+# listener after changing it.
+wake_phrase = "hey kitchen"
+
+# From 0 to 1. Raise it if the wake phrase is often missed, lower it if the listener
+# wakes up on its own.
+wake_sensitivity = 0.75
+
+# Part of the device name, as shown by `uv run listen.py --list-devices`. Leave empty to
+# use the system default.
+input_device = ""
+output_device = ""
+
+# moonshine-base (more accurate) or moonshine-tiny (about twice as fast).
+stt_model = "moonshine-base"
+
+# Any Piper voice from https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models,
+# without the vits-piper- prefix.
+tts_voice = "en_US-lessac-medium"
