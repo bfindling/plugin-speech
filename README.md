@@ -65,6 +65,11 @@ The wake phrase can be any words: change `wake_phrase` and restart. Adjust
 `wake_sensitivity` if it misses you or wakes on its own. Activity is logged to
 `listener/listener.log`.
 
+While Stavrobot works on an answer, the listener says a short filler phrase such as "One
+moment." picked at random from `filler_phrases`. Edit the list and restart to change
+them, or set it to `[]` to turn them off. Keep them short: the reply waits for the
+phrase to finish.
+
 While idle the listener uses about a tenth of one CPU core on an Intel N5095. A request
 takes roughly: the time you speak, a second of silence, under a second to transcribe,
 however long Stavrobot takes to answer, then the spoken reply.

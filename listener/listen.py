@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import queue
+import random
 import re
 import shutil
 import subprocess
@@ -62,6 +63,14 @@ SPOKEN_PREFIX = (
     "(Said aloud to you in the kitchen; your reply will be read out by a speaker. "
     "Answer in a few short spoken sentences with no markdown, lists, links or emoji.)\n\n"
 )
+DEFAULT_FILLER_PHRASES = [
+    "Let me think about that.",
+    "One moment.",
+    "Hmm, let me check.",
+    "Give me a second.",
+    "Working on it.",
+    "Let me look into that.",
+]
 
 log = logging.getLogger("listener")
 
@@ -76,6 +85,9 @@ def load_config() -> dict:
             raise ValueError(f"{key} is missing from {CONFIG_PATH}.")
     if config.get("stt_model", "moonshine-base") not in STT_MODELS:
         raise ValueError(f"stt_model must be one of: {', '.join(STT_MODELS)}")
+    phrases = config.get("filler_phrases", DEFAULT_FILLER_PHRASES)
+    if not isinstance(phrases, list) or not all(isinstance(phrase, str) and phrase.strip() for phrase in phrases):
+        raise ValueError(f"filler_phrases in {CONFIG_PATH} must be a list of non-empty strings.")
     return config
 
 
@@ -219,6 +231,8 @@ class Listener:
         self.vad_path = vad_path
         self.recognizer = create_recognizer(stt_directory)
         self.tts = create_tts(voice_directory)
+        self.fillers = [self.synthesize(phrase) for phrase in config.get("filler_phrases", DEFAULT_FILLER_PHRASES)]
+        self.last_filler: int | None = None
 
         self.input_device = find_device(config.get("input_device", ""), "input")
         self.output_device = find_device(config.get("output_device", ""), "output")
@@ -275,6 +289,7 @@ class Listener:
             self.play(CANCEL_CHIME)
             return
 
+        self.play_filler()
         started = time.monotonic()
         stream = self.recognizer.create_stream()
         stream.accept_waveform(SAMPLE_RATE, audio)
@@ -345,6 +360,19 @@ class Listener:
             sounddevice.wait()
             sounddevice.play(audio.samples, audio.sample_rate, device=self.output_device)
         sounddevice.wait()
+
+    def play_filler(self) -> None:
+        """Start a random filler phrase, never the previous one, and return while it plays."""
+        choices = [index for index in range(len(self.fillers)) if index != self.last_filler] or list(range(len(self.fillers)))
+        if not choices:
+            return
+        self.last_filler = random.choice(choices)
+        # speak() waits for this to finish before the reply, so keep phrases short.
+        sounddevice.play(self.fillers[self.last_filler], self.tts.sample_rate, device=self.output_device)
+
+    def synthesize(self, text: str) -> np.ndarray:
+        """Generate speech as a compact array; sherpa-onnx returns a list of Python floats."""
+        return np.array(self.tts.generate(text, sid=0, speed=1.0).samples, dtype=np.float32)
 
     def play(self, samples: np.ndarray) -> None:
         """Play a chime and wait for it to finish."""

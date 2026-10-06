@@ -24,3 +24,15 @@ stt_model = "moonshine-base"
 # Any Piper voice from https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models,
 # without the vits-piper- prefix.
 tts_voice = "en_US-lessac-medium"
+
+# Short phrases, one picked at random and played while Stavrobot works on an answer.
+# The reply waits for the phrase to finish, so keep each to a second or two. Restart the
+# listener after changing them; set filler_phrases = [] to turn them off.
+filler_phrases = [
+    "Let me think about that.",
+    "One moment.",
+    "Hmm, let me check.",
+    "Give me a second.",
+    "Working on it.",
+    "Let me look into that.",
+]
