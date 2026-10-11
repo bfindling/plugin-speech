@@ -61,6 +61,11 @@ after it exits for any reason. On Windows, a scheduled task that runs
 in the background with no window; Windows only gives audio devices to a signed-in user,
 so that user must stay signed in.
 
+The listener also exits, so the supervisor restarts it, if the microphone stops sending
+audio for 10 seconds or picks up nothing above the faintest room noise for 5 minutes.
+After several days of running, the input stream has been seen to go deaf without
+reporting an error. It logs the loudest microphone level once an hour.
+
 The wake phrase can be any words: change `wake_phrase` and restart. Adjust
 `wake_sensitivity` if it misses you or wakes on its own. Activity is logged to
 `listener/listener.log`.

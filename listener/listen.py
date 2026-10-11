@@ -59,6 +59,13 @@ END_OF_SPEECH_SILENCE_SECONDS = 1.0
 MAX_REQUEST_SECONDS = 30
 CHAT_TIMEOUT_SECONDS = 300
 RESTART_DELAY_SECONDS = 10
+# A live microphone always picks up some room noise, but after running for days the input
+# stream has gone deaf without erroring. If no audio arrives, or nothing louder than a
+# few 16-bit steps arrives for minutes, exit so the supervisor restarts the listener.
+STALLED_INPUT_SECONDS = 10
+SILENT_INPUT_SECONDS = 300
+SILENT_INPUT_PEAK = 1e-4
+LEVEL_LOG_SECONDS = 3600
 SPOKEN_PREFIX = (
     "(Said aloud to you in the kitchen; your reply will be read out by a speaker. "
     "Answer in a few short spoken sentences with no markdown, lists, links or emoji.)\n\n"
@@ -238,6 +245,10 @@ class Listener:
         self.output_device = find_device(config.get("output_device", ""), "output")
         self.input_rate = int(sounddevice.query_devices(self.input_device, "input")["default_samplerate"])
         self.blocks: queue.Queue[np.ndarray] = queue.Queue()
+        self.silence_window_started = time.monotonic()
+        self.silence_window_peak = 0.0
+        self.level_log_started = time.monotonic()
+        self.level_log_peak = 0.0
 
     def on_audio(self, indata: np.ndarray, frames: int, time_info: object, status: sounddevice.CallbackFlags) -> None:
         """Queue microphone audio from the PortAudio thread."""
@@ -259,7 +270,7 @@ class Listener:
             log.info("Listening for %r.", self.config["wake_phrase"])
             stream = self.spotter.create_stream()
             while True:
-                samples = resampler.resample_chunk(self.blocks.get())
+                samples = resampler.resample_chunk(self.next_block())
                 stream.accept_waveform(SAMPLE_RATE, samples)
                 while self.spotter.is_ready(stream):
                     self.spotter.decode_stream(stream)
@@ -273,6 +284,33 @@ class Listener:
                         stream = self.spotter.create_stream()
                         log.info("Listening for %r.", self.config["wake_phrase"])
                         break
+
+    def next_block(self) -> np.ndarray:
+        """Return the next block of microphone audio, exiting if the input has gone dead."""
+        try:
+            block = self.blocks.get(timeout=STALLED_INPUT_SECONDS)
+        except queue.Empty:
+            log.error("No microphone audio for %d seconds; exiting so the listener restarts.", STALLED_INPUT_SECONDS)
+            sys.exit(1)
+        peak = float(np.abs(block).max())
+        self.silence_window_peak = max(self.silence_window_peak, peak)
+        self.level_log_peak = max(self.level_log_peak, peak)
+        now = time.monotonic()
+        if now - self.silence_window_started >= SILENT_INPUT_SECONDS:
+            if self.silence_window_peak < SILENT_INPUT_PEAK:
+                log.error(
+                    "Microphone has been silent for %d seconds (loudest %.6f); exiting so the listener restarts.",
+                    SILENT_INPUT_SECONDS,
+                    self.silence_window_peak,
+                )
+                sys.exit(1)
+            self.silence_window_started = now
+            self.silence_window_peak = 0.0
+        if now - self.level_log_started >= LEVEL_LOG_SECONDS:
+            log.info("Loudest microphone level in the last hour: %.6f", self.level_log_peak)
+            self.level_log_started = now
+            self.level_log_peak = 0.0
+        return block
 
     def drain_input(self) -> None:
         """Discard queued microphone audio."""
@@ -317,7 +355,7 @@ class Listener:
         silent_seconds = 0.0
         total_seconds = 0.0
         while total_seconds < MAX_REQUEST_SECONDS:
-            samples = resampler.resample_chunk(self.blocks.get())
+            samples = resampler.resample_chunk(self.next_block())
             recorded.append(samples)
             total_seconds += len(samples) / SAMPLE_RATE
             pending = np.concatenate([pending, samples])
